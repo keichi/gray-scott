@@ -1,8 +1,10 @@
 #include <cstdio>
-#include <iostream>
-#include <vector>
 #include <fstream>
+#include <iostream>
 #include <mpi.h>
+#include <vector>
+
+#include <adios2.h>
 
 const int L = 128;
 const int TOTAL_STEP = 20000;
@@ -21,26 +23,29 @@ struct MPIinfo {
     int local_size_x, local_size_y;
 
     // 自分から見て +dx, +dyだけずれたプロセスのランクを返す
-    int get_rank(int dx, int dy) {
+    int get_rank(int dx, int dy)
+    {
         int rx = (local_grid_x + dx + GX) % GX;
         int ry = (local_grid_y + dy + GY) % GY;
         return rx + ry * GX;
     }
 
     // 自分の領域に含まれるか
-    bool is_inside(int x, int y) {
+    bool is_inside(int x, int y)
+    {
         int sx = local_size_x * local_grid_x;
         int sy = local_size_y * local_grid_y;
         int ex = sx + local_size_x;
         int ey = sy + local_size_y;
-        if (x < sx)return false;
-        if (x >= ex)return false;
-        if (y < sy)return false;
-        if (y >= ey)return false;
+        if (x < sx) return false;
+        if (x >= ex) return false;
+        if (y < sy) return false;
+        if (y >= ey) return false;
         return true;
     }
     // グローバル座標をローカルインデックスに
-    int g2i(int gx, int gy) {
+    int g2i(int gx, int gy)
+    {
         int sx = local_size_x * local_grid_x;
         int sy = local_size_y * local_grid_y;
         int x = gx - sx;
@@ -49,7 +54,8 @@ struct MPIinfo {
     }
 };
 
-void init(std::vector<double> &u, std::vector<double> &v, MPIinfo &mi) {
+void init(std::vector<double> &u, std::vector<double> &v, MPIinfo &mi)
+{
     int d = 3;
     for (int i = L / 2 - d; i < L / 2 + d; i++) {
         for (int j = L / 2 - d; j < L / 2 + d; j++) {
@@ -68,15 +74,12 @@ void init(std::vector<double> &u, std::vector<double> &v, MPIinfo &mi) {
     }
 }
 
-double calcU(double tu, double tv) {
-    return tu * tu * tv - (F + k) * tu;
-}
+double calcU(double tu, double tv) { return tu * tu * tv - (F + k) * tu; }
 
-double calcV(double tu, double tv) {
-    return -tu * tu * tv + F * (1.0 - tv);
-}
+double calcV(double tu, double tv) { return -tu * tu * tv + F * (1.0 - tv); }
 
-double laplacian(int ix, int iy, std::vector<double> &s, MPIinfo &mi) {
+double laplacian(int ix, int iy, std::vector<double> &s, MPIinfo &mi)
+{
     double ts = 0.0;
     const int l = mi.local_size_x + 2;
     ts += s[ix - 1 + iy * l];
@@ -87,7 +90,9 @@ double laplacian(int ix, int iy, std::vector<double> &s, MPIinfo &mi) {
     return ts;
 }
 
-void calc(std::vector<double> &u, std::vector<double> &v, std::vector<double> &u2, std::vector<double> &v2, MPIinfo &mi) {
+void calc(std::vector<double> &u, std::vector<double> &v,
+          std::vector<double> &u2, std::vector<double> &v2, MPIinfo &mi)
+{
     const int lx = mi.local_size_x + 2;
     const int ly = mi.local_size_y + 2;
     for (int iy = 1; iy < ly - 1; iy++) {
@@ -105,17 +110,8 @@ void calc(std::vector<double> &u, std::vector<double> &v, std::vector<double> &u
     }
 }
 
-void save_as_dat(std::vector<double> &u) {
-    static int index = 0;
-    char filename[256];
-    sprintf(filename, "conf%03d.dat", index);
-    std::cout << filename << std::endl;
-    std::ofstream ofs(filename, std::ios::binary);
-    ofs.write((char *)(u.data()), sizeof(double)*L * L);
-    index++;
-}
-
-void setup_info(MPIinfo &mi) {
+void setup_info(MPIinfo &mi)
+{
     int rank = 0;
     int procs = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -132,66 +128,21 @@ void setup_info(MPIinfo &mi) {
     mi.local_size_y = L / mi.GY;
 }
 
-// 送られてきたデータを再配置する
-void reordering(std::vector<double> &v, MPIinfo &mi) {
-    std::vector<double> v2(v.size());
-    std::copy(v.begin(), v.end(), v2.begin());
-    const int lx = mi.local_size_x;
-    const int ly = mi.local_size_y;
-    int i = 0;
-    for (int r = 0; r < mi.procs; r++) {
-        int rx = r % mi.GX;
-        int ry = r / mi.GX;
-        int sx = rx * lx;
-        int sy = ry * ly;
-        for (int iy = 0; iy < ly; iy++) {
-            for (int ix = 0; ix < lx; ix++) {
-                int index = (sx + ix) + (sy + iy) * L;
-                v[index] = v2[i];
-                i++;
-            }
-        }
-    }
-}
-
-// 各プロセスから保存用のデータを受け取ってセーブ
-void save_as_dat_mpi(std::vector<double> &local_data, MPIinfo &mi) {
-    const int lx = mi.local_size_x;
-    const int ly = mi.local_size_y;
-    std::vector<double> sendbuf(lx * ly);
-    // 「のりしろ」を除いたデータのコピー
-    for (int iy = 0; iy < ly; iy++) {
-        for (int ix = 0; ix < lx; ix++) {
-            int index_from = (ix + 1) + (iy + 1) * (lx + 2);
-            int index_to = ix + iy * lx;
-            sendbuf[index_to] = local_data[index_from];
-        }
-    }
-    std::vector<double> recvbuf;
-    if (mi.rank == 0) {
-        recvbuf.resize(lx * ly * mi.procs);
-    }
-    MPI_Gather(sendbuf.data(), lx * ly, MPI_DOUBLE, recvbuf.data(), lx * ly, MPI_DOUBLE, 0,  MPI_COMM_WORLD);
-    if (mi.rank == 0) {
-        reordering(recvbuf, mi);
-        save_as_dat(recvbuf);
-    }
-}
-
-void sendrecv_x(std::vector<double> &local_data, MPIinfo &mi) {
+void sendrecv_x(std::vector<double> &local_data, MPIinfo &mi)
+{
     const int lx = mi.local_size_x;
     const int ly = mi.local_size_y;
     std::vector<double> sendbuf(ly);
     std::vector<double> recvbuf(ly);
-    int left =  mi.get_rank(-1, 0);
+    int left = mi.get_rank(-1, 0);
     int right = mi.get_rank(1, 0);
     for (int i = 0; i < ly; i++) {
         int index = lx + (i + 1) * (lx + 2);
         sendbuf[i] = local_data[index];
     }
     MPI_Status st;
-    MPI_Sendrecv(sendbuf.data(), ly, MPI_DOUBLE, right, 0,
-            recvbuf.data(), ly, MPI_DOUBLE, left, 0, MPI_COMM_WORLD, &st);
+    MPI_Sendrecv(sendbuf.data(), ly, MPI_DOUBLE, right, 0, recvbuf.data(), ly,
+                 MPI_DOUBLE, left, 0, MPI_COMM_WORLD, &st);
     for (int i = 0; i < ly; i++) {
         int index = (i + 1) * (lx + 2);
         local_data[index] = recvbuf[i];
@@ -201,15 +152,16 @@ void sendrecv_x(std::vector<double> &local_data, MPIinfo &mi) {
         int index = 1 + (i + 1) * (lx + 2);
         sendbuf[i] = local_data[index];
     }
-    MPI_Sendrecv(sendbuf.data(), ly, MPI_DOUBLE, left, 0,
-            recvbuf.data(), ly, MPI_DOUBLE, right, 0, MPI_COMM_WORLD, &st);
+    MPI_Sendrecv(sendbuf.data(), ly, MPI_DOUBLE, left, 0, recvbuf.data(), ly,
+                 MPI_DOUBLE, right, 0, MPI_COMM_WORLD, &st);
     for (int i = 0; i < ly; i++) {
         int index = lx + 1 + (i + 1) * (lx + 2);
         local_data[index] = recvbuf[i];
     }
 }
 
-void sendrecv_y(std::vector<double> &local_data, MPIinfo &mi) {
+void sendrecv_y(std::vector<double> &local_data, MPIinfo &mi)
+{
     const int lx = mi.local_size_x;
     const int ly = mi.local_size_y;
     std::vector<double> sendbuf(lx + 2);
@@ -222,8 +174,8 @@ void sendrecv_y(std::vector<double> &local_data, MPIinfo &mi) {
         int index = i + 1 * (lx + 2);
         sendbuf[i] = local_data[index];
     }
-    MPI_Sendrecv(sendbuf.data(), lx + 2, MPI_DOUBLE, up, 0,
-            recvbuf.data(), lx + 2, MPI_DOUBLE, down, 0, MPI_COMM_WORLD, &st);
+    MPI_Sendrecv(sendbuf.data(), lx + 2, MPI_DOUBLE, up, 0, recvbuf.data(),
+                 lx + 2, MPI_DOUBLE, down, 0, MPI_COMM_WORLD, &st);
     for (int i = 0; i < lx + 2; i++) {
         int index = i + (ly + 1) * (lx + 2);
         local_data[index] = recvbuf[i];
@@ -233,28 +185,45 @@ void sendrecv_y(std::vector<double> &local_data, MPIinfo &mi) {
         int index = i + (ly) * (lx + 2);
         sendbuf[i] = local_data[index];
     }
-    MPI_Sendrecv(sendbuf.data(), lx + 2, MPI_DOUBLE, down, 0,
-            recvbuf.data(), lx + 2, MPI_DOUBLE, up, 0, MPI_COMM_WORLD, &st);
+    MPI_Sendrecv(sendbuf.data(), lx + 2, MPI_DOUBLE, down, 0, recvbuf.data(),
+                 lx + 2, MPI_DOUBLE, up, 0, MPI_COMM_WORLD, &st);
     for (int i = 0; i < lx + 2; i++) {
         int index = i + 0 * (lx + 2);
         local_data[index] = recvbuf[i];
     }
 }
 
-void sendrecv(std::vector<double> &u, std::vector<double> &v, MPIinfo &mi) {
+void sendrecv(std::vector<double> &u, std::vector<double> &v, MPIinfo &mi)
+{
     sendrecv_x(u, mi);
     sendrecv_y(u, mi);
     sendrecv_x(v, mi);
     sendrecv_y(v, mi);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     MPI_Init(&argc, &argv);
+
     MPIinfo mi;
     setup_info(mi);
     const int V = (mi.local_size_x + 2) * (mi.local_size_y + 2);
     std::vector<double> u(V, 0.0), v(V, 0.0);
     std::vector<double> u2(V, 0.0), v2(V, 0.0);
+    std::vector<double> adios_buf(mi.local_size_x * mi.local_size_y);
+
+    adios2::ADIOS adios(MPI_COMM_WORLD);
+    adios2::IO io = adios.DeclareIO("Output");
+    adios2::Variable<double> varT = io.DefineVariable<double>(
+        "T", {static_cast<unsigned long>(mi.GX * mi.local_size_x),
+              static_cast<unsigned long>(mi.GY * mi.local_size_y)},
+             {static_cast<unsigned long>(mi.local_grid_x * mi.local_size_x),
+              static_cast<unsigned long>(mi.local_grid_y * mi.local_size_y)},
+             {static_cast<unsigned long>(mi.local_size_x),
+              static_cast<unsigned long>(mi.local_size_y)});
+
+    adios2::Engine writer = io.Open("foo.bp", adios2::Mode::Write);
+
     init(u, v, mi);
     for (int i = 0; i < TOTAL_STEP; i++) {
         if (i & 1) {
@@ -264,7 +233,18 @@ int main(int argc, char **argv) {
             sendrecv(u, v, mi);
             calc(u, v, u2, v2, mi);
         }
-        if (i % INTERVAL == 0) save_as_dat_mpi(u, mi);
+        if (i % INTERVAL == 0) {
+            for (int iy = 1; iy <= mi.local_size_y; iy++) {
+                for (int ix = 1; ix < mi.local_size_x; ix++) {
+                    adios_buf[(ix - 1) + (iy - 1) * mi.local_size_x]
+                        = u[ix + iy * (mi.local_size_x + 2)];
+                }
+            }
+
+            writer.BeginStep();
+            writer.Put<double>(varT, adios_buf.data());
+            writer.EndStep();
+        }
     }
     MPI_Finalize();
 }
