@@ -210,15 +210,14 @@ int main(int argc, char **argv)
     const int V = (mi.local_size_x + 2) * (mi.local_size_y + 2);
     std::vector<double> u(V, 0.0), v(V, 0.0);
     std::vector<double> u2(V, 0.0), v2(V, 0.0);
+    std::vector<double> buf(mi.local_size_x * mi.local_size_y);
 
     adios2::ADIOS adios(MPI_COMM_WORLD);
     adios2::IO io = adios.DeclareIO("Output");
     adios2::Variable<double> varT = io.DefineVariable<double>(
-        "T", {mi.GX * mi.local_size_x, mi.GY * mi.local_size_y},
-        {mi.local_grid_x * mi.local_size_x, mi.local_grid_y * mi.local_size_y},
-        {mi.local_size_x, mi.local_size_y});
-    varT.SetMemorySelection(
-        {{1, 1}, {mi.local_size_x + 2, mi.local_size_y + 2}});
+        "T", {mi.GY * mi.local_size_y, mi.GX * mi.local_size_x},
+        {mi.local_grid_y * mi.local_size_y, mi.local_grid_x * mi.local_size_x},
+        {mi.local_size_y, mi.local_size_x});
 
     adios2::Engine writer = io.Open("foo.bp", adios2::Mode::Write);
 
@@ -233,7 +232,17 @@ int main(int argc, char **argv)
         }
         if (i % INTERVAL == 0) {
             writer.BeginStep();
-            writer.Put<double>(varT, u.data());
+
+            const int lx = mi.local_size_x + 2;
+            const int ly = mi.local_size_y + 2;
+            for (int iy = 1; iy < ly - 1; iy++) {
+                for (int ix = 1; ix < lx - 1; ix++) {
+                    buf[(ix - 1) + (iy - 1) * mi.local_size_x] =
+                        u[ix + iy * (mi.local_size_x + 2)];
+                }
+            }
+
+            writer.Put<double>(varT, buf.data());
             writer.EndStep();
         }
     }
