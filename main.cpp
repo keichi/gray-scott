@@ -210,8 +210,9 @@ int main(int argc, char **argv)
     std::vector<double> u2(V, 0.0), v2(V, 0.0);
     std::vector<double> buf(mi.local_size_x * mi.local_size_y);
 
-    adios2::ADIOS adios(MPI_COMM_WORLD);
-    adios2::IO io = adios.DeclareIO("Output");
+    adios2::ADIOS adios("adios2_config.xml", MPI_COMM_WORLD, adios2::DebugON);
+
+    adios2::IO io = adios.DeclareIO("SimulationOutput");
     adios2::Variable<double> varT = io.DefineVariable<double>(
         "T", {mi.GY * mi.local_size_y, mi.GX * mi.local_size_x},
         {mi.local_grid_y * mi.local_size_y, mi.local_grid_x * mi.local_size_x},
