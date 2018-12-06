@@ -18,9 +18,9 @@ const double Dv = 0.1;
 struct MPIinfo {
     int rank;
     int procs;
-    int GX, GY;
-    int local_grid_x, local_grid_y;
-    int local_size_x, local_size_y;
+    unsigned long GX, GY;
+    unsigned long local_grid_x, local_grid_y;
+    unsigned long local_size_x, local_size_y;
 
     // 自分から見て +dx, +dyだけずれたプロセスのランクを返す
     int get_rank(int dx, int dy)
@@ -214,17 +214,11 @@ int main(int argc, char **argv)
     adios2::ADIOS adios(MPI_COMM_WORLD);
     adios2::IO io = adios.DeclareIO("Output");
     adios2::Variable<double> varT = io.DefineVariable<double>(
-        "T",
-        {static_cast<unsigned long>(mi.GX * mi.local_size_x),
-         static_cast<unsigned long>(mi.GY * mi.local_size_y)},
-        {static_cast<unsigned long>(mi.local_grid_x * mi.local_size_x),
-         static_cast<unsigned long>(mi.local_grid_y * mi.local_size_y)},
-        {static_cast<unsigned long>(mi.local_size_x),
-         static_cast<unsigned long>(mi.local_size_y)});
+        "T", {mi.GX * mi.local_size_x, mi.GY * mi.local_size_y},
+        {mi.local_grid_x * mi.local_size_x, mi.local_grid_y * mi.local_size_y},
+        {mi.local_size_x, mi.local_size_y});
     varT.SetMemorySelection(
-        {{1, 1},
-         {static_cast<unsigned long>(mi.local_size_x + 2),
-          static_cast<unsigned long>(mi.local_size_y + 2)}});
+        {{1, 1}, {mi.local_size_x + 2, mi.local_size_y + 2}});
 
     adios2::Engine writer = io.Open("foo.bp", adios2::Mode::Write);
 
