@@ -210,17 +210,21 @@ int main(int argc, char **argv)
     const int V = (mi.local_size_x + 2) * (mi.local_size_y + 2);
     std::vector<double> u(V, 0.0), v(V, 0.0);
     std::vector<double> u2(V, 0.0), v2(V, 0.0);
-    std::vector<double> adios_buf(mi.local_size_x * mi.local_size_y);
 
     adios2::ADIOS adios(MPI_COMM_WORLD);
     adios2::IO io = adios.DeclareIO("Output");
     adios2::Variable<double> varT = io.DefineVariable<double>(
-        "T", {static_cast<unsigned long>(mi.GX * mi.local_size_x),
-              static_cast<unsigned long>(mi.GY * mi.local_size_y)},
-             {static_cast<unsigned long>(mi.local_grid_x * mi.local_size_x),
-              static_cast<unsigned long>(mi.local_grid_y * mi.local_size_y)},
-             {static_cast<unsigned long>(mi.local_size_x),
-              static_cast<unsigned long>(mi.local_size_y)});
+        "T",
+        {static_cast<unsigned long>(mi.GX * mi.local_size_x),
+         static_cast<unsigned long>(mi.GY * mi.local_size_y)},
+        {static_cast<unsigned long>(mi.local_grid_x * mi.local_size_x),
+         static_cast<unsigned long>(mi.local_grid_y * mi.local_size_y)},
+        {static_cast<unsigned long>(mi.local_size_x),
+         static_cast<unsigned long>(mi.local_size_y)});
+    varT.SetMemorySelection(
+        {{1, 1},
+         {static_cast<unsigned long>(mi.local_size_x + 2),
+          static_cast<unsigned long>(mi.local_size_y + 2)}});
 
     adios2::Engine writer = io.Open("foo.bp", adios2::Mode::Write);
 
@@ -234,15 +238,8 @@ int main(int argc, char **argv)
             calc(u, v, u2, v2, mi);
         }
         if (i % INTERVAL == 0) {
-            for (int iy = 1; iy <= mi.local_size_y; iy++) {
-                for (int ix = 1; ix < mi.local_size_x; ix++) {
-                    adios_buf[(ix - 1) + (iy - 1) * mi.local_size_x]
-                        = u[ix + iy * (mi.local_size_x + 2)];
-                }
-            }
-
             writer.BeginStep();
-            writer.Put<double>(varT, adios_buf.data());
+            writer.Put<double>(varT, u.data());
             writer.EndStep();
         }
     }
