@@ -6,14 +6,16 @@
 
 #include <adios2.h>
 
-const int L = 128;
-const int TOTAL_STEP = 20000;
-const int INTERVAL = 200;
-const double F = 0.04;
-const double k = 0.06075;
-const double dt = 0.2;
-const double Du = 0.05;
-const double Dv = 0.1;
+struct Settings {
+    int L;
+    int TOTAL_STEP;
+    int INTERVAL;
+    double F;
+    double k;
+    double dt;
+    double Du;
+    double Dv;
+};
 
 struct MPIinfo {
     int rank;
@@ -26,7 +28,7 @@ struct MPIinfo {
     MPI_Comm comm;
 
     // 自分の領域に含まれるか
-    bool is_inside(int x, int y)
+    bool is_inside(int x, int y) const
     {
         int sx = local_size_x * local_grid_x;
         int sy = local_size_y * local_grid_y;
@@ -39,7 +41,7 @@ struct MPIinfo {
         return true;
     }
     // グローバル座標をローカルインデックスに
-    int g2i(int gx, int gy)
+    int g2i(int gx, int gy) const
     {
         int sx = local_size_x * local_grid_x;
         int sy = local_size_y * local_grid_y;
@@ -49,19 +51,20 @@ struct MPIinfo {
     }
 };
 
-void init(std::vector<double> &u, std::vector<double> &v, MPIinfo &mi)
+void init(std::vector<double> &u, std::vector<double> &v, const MPIinfo &mi,
+          const Settings &s)
 {
     int d = 3;
-    for (int i = L / 2 - d; i < L / 2 + d; i++) {
-        for (int j = L / 2 - d; j < L / 2 + d; j++) {
+    for (int i = s.L / 2 - d; i < s.L / 2 + d; i++) {
+        for (int j = s.L / 2 - d; j < s.L / 2 + d; j++) {
             if (!mi.is_inside(i, j)) continue;
             int k = mi.g2i(i, j);
             u[k] = 0.7;
         }
     }
     d = 6;
-    for (int i = L / 2 - d; i < L / 2 + d; i++) {
-        for (int j = L / 2 - d; j < L / 2 + d; j++) {
+    for (int i = s.L / 2 - d; i < s.L / 2 + d; i++) {
+        for (int j = s.L / 2 - d; j < s.L / 2 + d; j++) {
             if (!mi.is_inside(i, j)) continue;
             int k = mi.g2i(i, j);
             v[k] = 0.9;
@@ -69,11 +72,18 @@ void init(std::vector<double> &u, std::vector<double> &v, MPIinfo &mi)
     }
 }
 
-double calcU(double tu, double tv) { return tu * tu * tv - (F + k) * tu; }
+double calcU(double tu, double tv, const Settings &s)
+{
+    return tu * tu * tv - (s.F + s.k) * tu;
+}
 
-double calcV(double tu, double tv) { return -tu * tu * tv + F * (1.0 - tv); }
+double calcV(double tu, double tv, const Settings &s)
+{
+    return -tu * tu * tv + s.F * (1.0 - tv);
+}
 
-double laplacian(int ix, int iy, std::vector<double> &s, MPIinfo &mi)
+double laplacian(int ix, int iy, const std::vector<double> &s,
+                 const MPIinfo &mi)
 {
     double ts = 0.0;
     const int l = mi.local_size_x + 2;
@@ -85,8 +95,9 @@ double laplacian(int ix, int iy, std::vector<double> &s, MPIinfo &mi)
     return ts;
 }
 
-void calc(std::vector<double> &u, std::vector<double> &v,
-          std::vector<double> &u2, std::vector<double> &v2, MPIinfo &mi)
+void calc(const std::vector<double> &u, const std::vector<double> &v,
+          std::vector<double> &u2, std::vector<double> &v2, const MPIinfo &mi,
+          const Settings &s)
 {
     const int lx = mi.local_size_x + 2;
     const int ly = mi.local_size_y + 2;
@@ -95,17 +106,17 @@ void calc(std::vector<double> &u, std::vector<double> &v,
             double du = 0;
             double dv = 0;
             const int i = ix + iy * lx;
-            du = Du * laplacian(ix, iy, u, mi);
-            dv = Dv * laplacian(ix, iy, v, mi);
-            du += calcU(u[i], v[i]);
-            dv += calcV(u[i], v[i]);
-            u2[i] = u[i] + du * dt;
-            v2[i] = v[i] + dv * dt;
+            du = s.Du * laplacian(ix, iy, u, mi);
+            dv = s.Dv * laplacian(ix, iy, v, mi);
+            du += calcU(u[i], v[i], s);
+            dv += calcV(u[i], v[i], s);
+            u2[i] = u[i] + du * s.dt;
+            v2[i] = v[i] + dv * s.dt;
         }
     }
 }
 
-void setup_info(MPIinfo &mi)
+void setup_info(MPIinfo &mi, const Settings &s)
 {
     int rank = 0;
     int procs = 0;
@@ -117,8 +128,8 @@ void setup_info(MPIinfo &mi)
     mi.procs = procs;
     mi.GX = d2[0];
     mi.GY = d2[1];
-    mi.local_size_x = L / mi.GX;
-    mi.local_size_y = L / mi.GY;
+    mi.local_size_x = s.L / mi.GX;
+    mi.local_size_y = s.L / mi.GY;
 
     int periods[2] = {1, 1};
     int coords[2] = {};
@@ -128,6 +139,18 @@ void setup_info(MPIinfo &mi)
     mi.local_grid_y = coords[1];
     MPI_Cart_shift(mi.comm, 0, 1, &mi.left, &mi.right);
     MPI_Cart_shift(mi.comm, 1, 1, &mi.down, &mi.up);
+}
+
+void setup_settings(Settings &s)
+{
+    s.L = 128;
+    s.TOTAL_STEP = 20000;
+    s.INTERVAL = 200;
+    s.F = 0.04;
+    s.k = 0.06075;
+    s.dt = 0.2;
+    s.Du = 0.05;
+    s.Dv = 0.1;
 }
 
 void sendrecv_x(std::vector<double> &local_data, MPIinfo &mi)
@@ -204,7 +227,11 @@ int main(int argc, char **argv)
     MPI_Init(&argc, &argv);
 
     MPIinfo mi;
-    setup_info(mi);
+    Settings s;
+
+    setup_settings(s);
+    setup_info(mi, s);
+
     const int V = (mi.local_size_x + 2) * (mi.local_size_y + 2);
     std::vector<double> u(V, 0.0), v(V, 0.0);
     std::vector<double> u2(V, 0.0), v2(V, 0.0);
@@ -220,16 +247,16 @@ int main(int argc, char **argv)
 
     adios2::Engine writer = io.Open("foo.bp", adios2::Mode::Write);
 
-    init(u, v, mi);
-    for (int i = 0; i < TOTAL_STEP; i++) {
+    init(u, v, mi, s);
+    for (int i = 0; i < s.TOTAL_STEP; i++) {
         if (i & 1) {
             sendrecv(u2, v2, mi);
-            calc(u2, v2, u, v, mi);
+            calc(u2, v2, u, v, mi, s);
         } else {
             sendrecv(u, v, mi);
-            calc(u, v, u2, v2, mi);
+            calc(u, v, u2, v2, mi, s);
         }
-        if (i % INTERVAL == 0) {
+        if (i % s.INTERVAL == 0) {
             writer.BeginStep();
 
             const int lx = mi.local_size_x + 2;
