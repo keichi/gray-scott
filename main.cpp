@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 {
     MPI_Init(&argc, &argv);
 
-    Settings settings;
+    Settings settings = Settings::from_json("settings.json");
     GrayScott sim(settings);
 
     sim.init();
@@ -29,10 +29,10 @@ int main(int argc, char **argv)
 
     adios2::Engine writer = io.Open("foo.bp", adios2::Mode::Write);
 
-    for (int i = 0; i < settings.TOTAL_STEP; i++) {
+    for (int i = 0; i < settings.steps; i++) {
         sim.iterate();
 
-        if (i % settings.INTERVAL == 0) {
+        if (i % settings.iterations == 0) {
             std::vector<double> u = sim.data_noghost();
 
             writer.BeginStep();
