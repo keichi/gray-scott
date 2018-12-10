@@ -68,37 +68,30 @@ int GrayScott::g2i(int gx, int gy) const
 void GrayScott::init_field()
 {
     const int V = (local_size_x + 2) * (local_size_y + 2);
-    u.resize(V, 0.0);
+    u.resize(V, 1.0);
     v.resize(V, 0.0);
     u2.resize(V, 0.0);
     v2.resize(V, 0.0);
 
-    int d = 3;
+    int d = 6;
     for (int i = settings.L / 2 - d; i < settings.L / 2 + d; i++) {
         for (int j = settings.L / 2 - d; j < settings.L / 2 + d; j++) {
             if (!is_inside(i, j)) continue;
             int k = g2i(i, j);
-            u[k] = 0.7;
-        }
-    }
-    d = 6;
-    for (int i = settings.L / 2 - d; i < settings.L / 2 + d; i++) {
-        for (int j = settings.L / 2 - d; j < settings.L / 2 + d; j++) {
-            if (!is_inside(i, j)) continue;
-            int k = g2i(i, j);
-            v[k] = 0.9;
+            u[k] = 0.5;
+            v[k] = 0.25;
         }
     }
 }
 
 double GrayScott::calcU(double tu, double tv) const
 {
-    return tu * tu * tv - (settings.F + settings.k) * tu;
+    return -tu * tv * tv + settings.F * (1.0 - tu);
 }
 
 double GrayScott::calcV(double tu, double tv) const
 {
-    return -tu * tu * tv + settings.F * (1.0 - tv);
+    return tu * tv * tv - (settings.F + settings.k) * tv;
 }
 
 double GrayScott::laplacian(int ix, int iy, const std::vector<double> &s) const
@@ -110,7 +103,7 @@ double GrayScott::laplacian(int ix, int iy, const std::vector<double> &s) const
     ts += s[ix + (iy - 1) * l];
     ts += s[ix + (iy + 1) * l];
     ts -= 4.0 * s[ix + iy * l];
-    return ts;
+    return ts / 4.0;
 }
 
 void GrayScott::calc(const std::vector<double> &u, const std::vector<double> &v,
