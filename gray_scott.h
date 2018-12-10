@@ -1,6 +1,7 @@
 #ifndef __GRAY_SCOTT_H__
 #define __GRAY_SCOTT_H__
 
+#include <random>
 #include <vector>
 
 #include <mpi.h>
@@ -30,6 +31,10 @@ protected:
     int procs;
     int left, right, up, down;
     MPI_Comm comm;
+
+    std::random_device rand_dev;
+    std::mt19937 mt_gen;
+    std::uniform_real_distribution<double> uniform_dist;
 
     void init_field();
     void init_mpi();

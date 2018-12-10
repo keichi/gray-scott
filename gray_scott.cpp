@@ -1,9 +1,14 @@
 #include <mpi.h>
+#include <random>
 #include <vector>
 
 #include "gray_scott.h"
 
-GrayScott::GrayScott(const Settings &settings) : settings(settings) {}
+GrayScott::GrayScott(const Settings &settings)
+    : settings(settings), rand_dev(), mt_gen(rand_dev()),
+      uniform_dist(-1.0, 1.0)
+{
+}
 
 GrayScott::~GrayScott() {}
 
@@ -122,6 +127,7 @@ void GrayScott::calc(const std::vector<double> &u, const std::vector<double> &v,
             dv = settings.Dv * laplacian(ix, iy, v);
             du += calcU(u[i], v[i]);
             dv += calcV(u[i], v[i]);
+            du += settings.noise * uniform_dist(mt_gen);
             u2[i] = u[i] + du * settings.dt;
             v2[i] = v[i] + dv * settings.dt;
         }

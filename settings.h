@@ -14,6 +14,7 @@ public:
     double dt;
     double Du;
     double Dv;
+    double noise;
 
     Settings();
     static Settings from_json(const std::string &fname);

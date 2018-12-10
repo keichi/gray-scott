@@ -8,8 +8,7 @@ void to_json(nlohmann::json &j, const Settings &s)
     j = nlohmann::json{
         {"L", s.L},   {"steps", s.steps}, {"iterations", s.iterations},
         {"F", s.F},   {"k", s.k},         {"dt", s.dt},
-        {"Du", s.Du}, {"Dv", s.Dv},
-    };
+        {"Du", s.Du}, {"Dv", s.Dv},       {"noise", s.noise}};
 }
 
 void from_json(const nlohmann::json &j, Settings &s)
@@ -22,6 +21,7 @@ void from_json(const nlohmann::json &j, Settings &s)
     j.at("dt").get_to(s.dt);
     j.at("Du").get_to(s.Du);
     j.at("Dv").get_to(s.Dv);
+    j.at("noise").get_to(s.noise);
 }
 
 Settings::Settings()
@@ -34,6 +34,7 @@ Settings::Settings()
     dt = 0.2;
     Du = 0.05;
     Dv = 0.1;
+    noise = 0.0;
 }
 
 Settings Settings::from_json(const std::string &fname)
