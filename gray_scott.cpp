@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <random>
 #include <vector>
+#include <iomanip>
 
 #include "gray_scott.h"
 
@@ -27,47 +28,87 @@ void GrayScott::iterate()
     v.swap(v2);
 }
 
-std::vector<double> GrayScott::data_noghost() const
+void GrayScott::dump() const
 {
-    std::vector<double> buf(local_size_x * local_size_y);
+    const int lx = local_size_x + 2;
+    const int ly = local_size_y + 2;
+    const int lz = local_size_z + 2;
+
+    for (int iz = 0; iz < lz; iz++) {
+        std::cout << "z=" << iz << std::endl;
+        for (int iy = ly - 1; iy >= 0; iy--) {
+            for (int ix = 0; ix < lx; ix++) {
+                std::cout << std::fixed << std::setprecision(2) << u[l2i(ix, iy, iz)] << " ";
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << std::endl;
+    }
+}
+
+std::vector<double> GrayScott::u_noghost() const { return data_noghost(u); }
+
+std::vector<double> GrayScott::v_noghost() const { return data_noghost(v); }
+
+std::vector<double>
+GrayScott::data_noghost(const std::vector<double> &data) const
+{
+    std::vector<double> buf(local_size_x * local_size_y * local_size_z);
 
     const int lx = local_size_x + 2;
     const int ly = local_size_y + 2;
-    for (int iy = 1; iy < ly - 1; iy++) {
-        for (int ix = 1; ix < lx - 1; ix++) {
-            buf[(ix - 1) + (iy - 1) * local_size_x] =
-                u[ix + iy * (local_size_x + 2)];
+    const int lz = local_size_z + 2;
+
+    for (int iz = 1; iz < lz - 1; iz++) {
+        for (int iy = 1; iy < ly - 1; iy++) {
+            for (int ix = 1; ix < lx - 1; ix++) {
+                buf[(ix - 1) + (iy - 1) * local_size_x +
+                    (iz - 1) * local_size_x * local_size_y] =
+                    data[l2i(ix, iy, iz)];
+            }
         }
     }
 
     return buf;
 }
 
-bool GrayScott::is_inside(int x, int y) const
+bool GrayScott::is_inside(int x, int y, int z) const
 {
     int sx = local_size_x * local_grid_x;
     int sy = local_size_y * local_grid_y;
+    int sz = local_size_z * local_grid_z;
+
     int ex = sx + local_size_x;
     int ey = sy + local_size_y;
+    int ez = sz + local_size_z;
+
     if (x < sx) return false;
     if (x >= ex) return false;
     if (y < sy) return false;
     if (y >= ey) return false;
+    if (z < sz) return false;
+    if (z >= ez) return false;
+
     return true;
 }
 
-int GrayScott::g2i(int gx, int gy) const
+int GrayScott::g2i(int gx, int gy, int gz) const
 {
     int sx = local_size_x * local_grid_x;
     int sy = local_size_y * local_grid_y;
+    int sz = local_size_z * local_grid_z;
+
     int x = gx - sx;
     int y = gy - sy;
-    return (x + 1) + (y + 1) * (local_size_x + 2);
+    int z = gz - sz;
+
+    return l2i(x + 1, y + 1, z + 1);
 }
 
 void GrayScott::init_field()
 {
-    const int V = (local_size_x + 2) * (local_size_y + 2);
+    const int V = (local_size_x + 2) * (local_size_y + 2) * (local_size_z + 2);
     u.resize(V, 1.0);
     v.resize(V, 0.0);
     u2.resize(V, 0.0);
@@ -75,12 +116,14 @@ void GrayScott::init_field()
 
     int d = 6;
     for (int i = settings.L / 2 - d; i < settings.L / 2 + d; i++) {
-        for (int j = settings.L / 2 - d; j < settings.L / 2 + d; j++) {
-            if (!is_inside(i, j)) continue;
-            int k = g2i(i, j);
-            u[k] = 0.5;
-            v[k] = 0.25;
-        }
+       for (int j = settings.L / 2 - d; j < settings.L / 2 + d; j++) {
+           for (int k = settings.L / 2 - d; k < settings.L / 2 + d; k++) {
+               if (!is_inside(i, j, k)) continue;
+               int ix = g2i(i, j, k);
+               u[ix] = 0.25;
+               v[ix] = 0.33;
+           }
+       }
     }
 }
 
@@ -94,16 +137,19 @@ double GrayScott::calcV(double tu, double tv) const
     return tu * tv * tv - (settings.F + settings.k) * tv;
 }
 
-double GrayScott::laplacian(int ix, int iy, const std::vector<double> &s) const
+double GrayScott::laplacian(int ix, int iy, int iz,
+                            const std::vector<double> &s) const
 {
     double ts = 0.0;
-    const int l = local_size_x + 2;
-    ts += s[ix - 1 + iy * l];
-    ts += s[ix + 1 + iy * l];
-    ts += s[ix + (iy - 1) * l];
-    ts += s[ix + (iy + 1) * l];
-    ts -= 4.0 * s[ix + iy * l];
-    return ts / 4.0;
+    ts += s[l2i(ix - 1, iy, iz)];
+    ts += s[l2i(ix + 1, iy, iz)];
+    ts += s[l2i(ix, iy - 1, iz)];
+    ts += s[l2i(ix, iy + 1, iz)];
+    ts += s[l2i(ix, iy, iz - 1)];
+    ts += s[l2i(ix, iy, iz + 1)];
+    ts += -6.0 * s[l2i(ix, iy, iz)];
+
+    return ts / 6.0;
 }
 
 void GrayScott::calc(const std::vector<double> &u, const std::vector<double> &v,
@@ -111,80 +157,125 @@ void GrayScott::calc(const std::vector<double> &u, const std::vector<double> &v,
 {
     const int lx = local_size_x + 2;
     const int ly = local_size_y + 2;
-    for (int iy = 1; iy < ly - 1; iy++) {
-        for (int ix = 1; ix < lx - 1; ix++) {
-            double du = 0;
-            double dv = 0;
-            const int i = ix + iy * lx;
-            du = settings.Du * laplacian(ix, iy, u);
-            dv = settings.Dv * laplacian(ix, iy, v);
-            du += calcU(u[i], v[i]);
-            dv += calcV(u[i], v[i]);
-            du += settings.noise * uniform_dist(mt_gen);
-            u2[i] = u[i] + du * settings.dt;
-            v2[i] = v[i] + dv * settings.dt;
+    const int lz = local_size_z + 2;
+
+    for (int iz = 1; iz < lz - 1; iz++) {
+        for (int iy = 1; iy < ly - 1; iy++) {
+            for (int ix = 1; ix < lx - 1; ix++) {
+                const int i = l2i(ix, iy, iz);
+                double du = 0.0;
+                double dv = 0.0;
+                du = settings.Du * laplacian(ix, iy, iz, u);
+                dv = settings.Dv * laplacian(ix, iy, iz, v);
+                du += calcU(u[i], v[i]);
+                dv += calcV(u[i], v[i]);
+                du += settings.noise * uniform_dist(mt_gen);
+                u2[i] = u[i] + du * settings.dt;
+                v2[i] = v[i] + dv * settings.dt;
+            }
         }
     }
 }
 
 void GrayScott::init_mpi()
 {
-    int dims[2] = {};
-    int periods[2] = {1, 1};
-    int coords[2] = {};
+    int dims[3] = {};
+    int periods[3] = {1, 1, 1};
+    int coords[3] = {};
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
 
-    MPI_Dims_create(procs, 2, dims);
+    MPI_Dims_create(procs, 3, dims);
     GX = dims[0];
     GY = dims[1];
+    GZ = dims[2];
     local_size_x = settings.L / GX;
     local_size_y = settings.L / GY;
+    local_size_z = settings.L / GZ;
 
-    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 0, &comm);
-    MPI_Cart_coords(comm, rank, 2, coords);
+    MPI_Cart_create(MPI_COMM_WORLD, 3, dims, periods, 0, &comm);
+    MPI_Cart_coords(comm, rank, 3, coords);
     local_grid_x = coords[0];
     local_grid_y = coords[1];
+    local_grid_z = coords[2];
 
-    MPI_Cart_shift(comm, 0, 1, &left, &right);
-    MPI_Cart_shift(comm, 1, 1, &down, &up);
+    MPI_Cart_shift(comm, 0, 1, &west, &east);
+    MPI_Cart_shift(comm, 1, 1, &south, &north);
+    MPI_Cart_shift(comm, 2, 1, &down, &up);
 
-    MPI_Type_contiguous(local_size_x + 2, MPI_DOUBLE, &row_type);
-    MPI_Type_commit(&row_type);
+    // XY face: local_size_x * local_Size_y
+    MPI_Type_vector(local_size_y, local_size_x, local_size_x + 2, MPI_DOUBLE,
+                    &xy_face_type);
+    MPI_Type_commit(&xy_face_type);
 
-    MPI_Type_vector(local_size_y, 1, local_size_x + 2, MPI_DOUBLE, &col_type);
-    MPI_Type_commit(&col_type);
+    // XZ face: loca_size_x * (local_size_z + 2)
+    MPI_Type_vector(local_size_z + 2, local_size_x,
+                    (local_size_x + 2) * (local_size_y + 2), MPI_DOUBLE,
+                    &xz_face_type);
+    MPI_Type_commit(&xz_face_type);
+
+    // YZ face: (loca_size_y + 2) * (local_size_z + 2)
+    MPI_Type_vector((local_size_y + 2) * (local_size_z + 2), 1,
+                    local_size_x + 2, MPI_DOUBLE, &yz_face_type);
+    MPI_Type_commit(&yz_face_type);
 }
 
-void GrayScott::sendrecv_x(std::vector<double> &local_data)
+// Exchange XY face with north/south
+void GrayScott::sendrecv_xy(std::vector<double> &local_data)
 {
-    const int lx = local_size_x;
+    const int lz = local_size_z;
     MPI_Status st;
-    MPI_Sendrecv(&local_data[lx + 1 * (lx + 2)], 1, col_type, right, 0,
-                 &local_data[0 + 1 * (lx + 2)], 1, col_type, left, 0, comm,
+
+    // Send XY surface z=lz to north and receive surface z=0 from south
+    MPI_Sendrecv(&local_data[l2i(1, 1, lz)], 1, xy_face_type, north, 1,
+                 &local_data[l2i(1, 1, 0)], 1, xy_face_type, south, 1, comm,
                  &st);
-    MPI_Sendrecv(&local_data[1 + 1 * (lx + 2)], 1, col_type, left, 0,
-                 &local_data[(lx + 1) + 1 * (lx + 2)], 1, col_type, right, 0,
+    // Send XY surface z=1 to south and receive surface z=lz+1 from north
+    MPI_Sendrecv(&local_data[l2i(1, 1, 1)], 1, xy_face_type, south, 1,
+                 &local_data[l2i(1, 1, lz + 1)], 1, xy_face_type, north, 1,
                  comm, &st);
 }
 
-void GrayScott::sendrecv_y(std::vector<double> &local_data)
+// Exchange XZ face with up/down
+void GrayScott::sendrecv_xz(std::vector<double> &local_data)
 {
-    const int lx = local_size_x;
     const int ly = local_size_y;
     MPI_Status st;
-    MPI_Sendrecv(&local_data[lx + 2], 1, row_type, up, 0,
-                 &local_data[(ly + 1) * (lx + 2)], 1, row_type, down, 0, comm,
+
+    // Send XZ surface y=ly to up and receive surface y=0 from down
+    MPI_Sendrecv(&local_data[l2i(1, ly, 0)], 1, xz_face_type, up, 2,
+                 &local_data[l2i(1, 0, 0)], 1, xz_face_type, down, 2, comm,
                  &st);
-    MPI_Sendrecv(&local_data[ly * (lx + 2)], 1, row_type, down, 0,
-                 &local_data[0 * (lx + 2)], 1, row_type, up, 0, comm, &st);
+    // Send XZ surface y=1 to down and receive surface y=ly+1 from up
+    MPI_Sendrecv(&local_data[l2i(1, 1, 0)], 1, xz_face_type, down, 2,
+                 &local_data[l2i(1, ly + 1, 0)], 1, xz_face_type, up, 2, comm,
+                 &st);
+}
+
+// Exchange YZ face with west/east
+void GrayScott::sendrecv_yz(std::vector<double> &local_data)
+{
+    const int lx = local_size_x;
+    MPI_Status st;
+
+    // Send YZ surface x=lx to east and receive surface x=0 from west
+    MPI_Sendrecv(&local_data[l2i(lx, 0, 0)], 1, yz_face_type, east, 3,
+                 &local_data[l2i(0, 0, 0)], 1, yz_face_type, west, 3, comm,
+                 &st);
+    // Send YZ surface x=1 to west and receive surface x=lx+1 from east
+    MPI_Sendrecv(&local_data[l2i(1, 0, 0)], 1, yz_face_type, west, 3,
+                 &local_data[l2i(lx + 1, 0, 0)], 1, yz_face_type, east, 3, comm,
+                 &st);
 }
 
 void GrayScott::sendrecv(std::vector<double> &u, std::vector<double> &v)
 {
-    sendrecv_x(u);
-    sendrecv_y(u);
-    sendrecv_x(v);
-    sendrecv_y(v);
+    sendrecv_xy(u);
+    sendrecv_xz(u);
+    sendrecv_yz(u);
+
+    sendrecv_xy(v);
+    sendrecv_xz(v);
+    sendrecv_yz(v);
 }

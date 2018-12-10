@@ -21,11 +21,24 @@ int main(int argc, char **argv)
 
     adios2::IO io = adios.DeclareIO("SimulationOutput");
 
-    adios2::Variable<double> varT = io.DefineVariable<double>(
-        "T", {sim.GY * sim.local_size_y, sim.GX * sim.local_size_x},
-        {sim.local_grid_y * sim.local_size_y,
+    adios2::Variable<double> varU = io.DefineVariable<double>(
+        "U",
+        {sim.GZ * sim.local_size_z, sim.GY * sim.local_size_y,
+         sim.GX * sim.local_size_x},
+        {sim.local_grid_z * sim.local_size_z,
+         sim.local_grid_y * sim.local_size_y,
          sim.local_grid_x * sim.local_size_x},
-        {sim.local_size_y, sim.local_size_x});
+        {sim.local_size_z, sim.local_size_y, sim.local_size_x});
+
+    adios2::Variable<double> varV = io.DefineVariable<double>(
+        "V",
+        {sim.GZ * sim.local_size_z, sim.GY * sim.local_size_y,
+         sim.GX * sim.local_size_x},
+        {sim.local_grid_z * sim.local_size_z,
+         sim.local_grid_y * sim.local_size_y,
+         sim.local_grid_x * sim.local_size_x},
+        {sim.local_size_z, sim.local_size_y, sim.local_size_x});
+
 
     adios2::Engine writer = io.Open("foo.bp", adios2::Mode::Write);
 
@@ -33,12 +46,18 @@ int main(int argc, char **argv)
         sim.iterate();
 
         if (i % settings.iterations == 0) {
-            std::vector<double> u = sim.data_noghost();
+            std::cout << "Writing step: " << i << std::endl;
+            std::vector<double> u = sim.u_noghost();
+            std::vector<double> v = sim.v_noghost();
 
             writer.BeginStep();
-            writer.Put<double>(varT, u.data());
+            writer.Put<double>(varU, u.data());
+            writer.Put<double>(varV, v.data());
             writer.EndStep();
         }
     }
+
+    writer.Close();
+
     MPI_Finalize();
 }
