@@ -156,67 +156,36 @@ void GrayScott::init_mpi()
 
     MPI_Cart_shift(comm, 0, 1, &left, &right);
     MPI_Cart_shift(comm, 1, 1, &down, &up);
+
+    MPI_Type_contiguous(local_size_x + 2, MPI_DOUBLE, &row_type);
+    MPI_Type_commit(&row_type);
+
+    MPI_Type_vector(local_size_y, 1, local_size_x + 2, MPI_DOUBLE, &col_type);
+    MPI_Type_commit(&col_type);
 }
 
 void GrayScott::sendrecv_x(std::vector<double> &local_data)
 {
     const int lx = local_size_x;
-    const int ly = local_size_y;
-    std::vector<double> sendbuf(ly);
-    std::vector<double> recvbuf(ly);
-    for (int i = 0; i < ly; i++) {
-        int index = lx + (i + 1) * (lx + 2);
-        sendbuf[i] = local_data[index];
-    }
     MPI_Status st;
-    MPI_Sendrecv(sendbuf.data(), ly, MPI_DOUBLE, right, 0, recvbuf.data(), ly,
-                 MPI_DOUBLE, left, 0, comm, &st);
-    for (int i = 0; i < ly; i++) {
-        int index = (i + 1) * (lx + 2);
-        local_data[index] = recvbuf[i];
-    }
-
-    for (int i = 0; i < ly; i++) {
-        int index = 1 + (i + 1) * (lx + 2);
-        sendbuf[i] = local_data[index];
-    }
-    MPI_Sendrecv(sendbuf.data(), ly, MPI_DOUBLE, left, 0, recvbuf.data(), ly,
-                 MPI_DOUBLE, right, 0, comm, &st);
-    for (int i = 0; i < ly; i++) {
-        int index = lx + 1 + (i + 1) * (lx + 2);
-        local_data[index] = recvbuf[i];
-    }
+    MPI_Sendrecv(&local_data[lx + 1 * (lx + 2)], 1, col_type, right, 0,
+                 &local_data[0 + 1 * (lx + 2)], 1, col_type, left, 0, comm,
+                 &st);
+    MPI_Sendrecv(&local_data[1 + 1 * (lx + 2)], 1, col_type, left, 0,
+                 &local_data[(lx + 1) + 1 * (lx + 2)], 1, col_type, right, 0,
+                 comm, &st);
 }
 
 void GrayScott::sendrecv_y(std::vector<double> &local_data)
 {
     const int lx = local_size_x;
     const int ly = local_size_y;
-    std::vector<double> sendbuf(lx + 2);
-    std::vector<double> recvbuf(lx + 2);
     MPI_Status st;
-    // 上に投げて下から受け取る
-    for (int i = 0; i < lx + 2; i++) {
-        int index = i + 1 * (lx + 2);
-        sendbuf[i] = local_data[index];
-    }
-    MPI_Sendrecv(sendbuf.data(), lx + 2, MPI_DOUBLE, up, 0, recvbuf.data(),
-                 lx + 2, MPI_DOUBLE, down, 0, comm, &st);
-    for (int i = 0; i < lx + 2; i++) {
-        int index = i + (ly + 1) * (lx + 2);
-        local_data[index] = recvbuf[i];
-    }
-    // 下に投げて上から受け取る
-    for (int i = 0; i < lx + 2; i++) {
-        int index = i + (ly) * (lx + 2);
-        sendbuf[i] = local_data[index];
-    }
-    MPI_Sendrecv(sendbuf.data(), lx + 2, MPI_DOUBLE, down, 0, recvbuf.data(),
-                 lx + 2, MPI_DOUBLE, up, 0, comm, &st);
-    for (int i = 0; i < lx + 2; i++) {
-        int index = i + 0 * (lx + 2);
-        local_data[index] = recvbuf[i];
-    }
+    MPI_Sendrecv(&local_data[lx + 2], 1, row_type, up, 0,
+                 &local_data[(ly + 1) * (lx + 2)], 1, row_type, down, 0, comm,
+                 &st);
+    MPI_Sendrecv(&local_data[ly * (lx + 2)], 1, row_type, down, 0,
+                 &local_data[0 * (lx + 2)], 1, row_type, up, 0, comm, &st);
 }
 
 void GrayScott::sendrecv(std::vector<double> &u, std::vector<double> &v)

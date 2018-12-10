@@ -31,6 +31,8 @@ protected:
     int procs;
     int left, right, up, down;
     MPI_Comm comm;
+    MPI_Datatype row_type;
+    MPI_Datatype col_type;
 
     std::random_device rand_dev;
     std::mt19937 mt_gen;
