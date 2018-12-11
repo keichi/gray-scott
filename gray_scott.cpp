@@ -37,13 +37,9 @@ GrayScott::data_noghost(const std::vector<double> &data) const
 {
     std::vector<double> buf(local_size_x * local_size_y * local_size_z);
 
-    const int lx = local_size_x + 2;
-    const int ly = local_size_y + 2;
-    const int lz = local_size_z + 2;
-
-    for (int iz = 1; iz < lz - 1; iz++) {
-        for (int iy = 1; iy < ly - 1; iy++) {
-            for (int ix = 1; ix < lx - 1; ix++) {
+    for (int ix = 1; ix < local_size_x + 1; ix++) {
+        for (int iy = 1; iy < local_size_y + 1; iy++) {
+            for (int iz = 1; iz < local_size_z + 1; iz++) {
                 buf[(ix - 1) + (iy - 1) * local_size_x +
                     (iz - 1) * local_size_x * local_size_y] =
                     data[l2i(ix, iy, iz)];
@@ -63,13 +59,13 @@ void GrayScott::init_field()
     v2.resize(V, 0.0);
 
     int d = 6;
-    for (int i = settings.L / 2 - d; i < settings.L / 2 + d; i++) {
-        for (int j = settings.L / 2 - d; j < settings.L / 2 + d; j++) {
-            for (int k = settings.L / 2 - d; k < settings.L / 2 + d; k++) {
-                if (!is_inside(i, j, k)) continue;
-                int ix = g2i(i, j, k);
-                u[ix] = 0.25;
-                v[ix] = 0.33;
+    for (int ix = settings.L / 2 - d; ix < settings.L / 2 + d; ix++) {
+        for (int iy = settings.L / 2 - d; iy < settings.L / 2 + d; iy++) {
+            for (int iz = settings.L / 2 - d; iz < settings.L / 2 + d; iz++) {
+                if (!is_inside(ix, iy, iz)) continue;
+                int i = g2i(ix, iy, iz);
+                u[i] = 0.25;
+                v[i] = 0.33;
             }
         }
     }
@@ -103,13 +99,9 @@ double GrayScott::laplacian(int ix, int iy, int iz,
 void GrayScott::calc(const std::vector<double> &u, const std::vector<double> &v,
                      std::vector<double> &u2, std::vector<double> &v2)
 {
-    const int lx = local_size_x + 2;
-    const int ly = local_size_y + 2;
-    const int lz = local_size_z + 2;
-
-    for (int iz = 1; iz < lz - 1; iz++) {
-        for (int iy = 1; iy < ly - 1; iy++) {
-            for (int ix = 1; ix < lx - 1; ix++) {
+    for (int ix = 1; ix < local_size_x + 1; ix++) {
+        for (int iy = 1; iy < local_size_y + 1; iy++) {
+            for (int iz = 1; iz < local_size_z + 1; iz++) {
                 const int i = l2i(ix, iy, iz);
                 double du = 0.0;
                 double dv = 0.0;
