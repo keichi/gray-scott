@@ -22,7 +22,6 @@ public:
     void iterate();
     std::vector<double> u_noghost() const;
     std::vector<double> v_noghost() const;
-    void dump() const;
 
 protected:
     Settings settings;

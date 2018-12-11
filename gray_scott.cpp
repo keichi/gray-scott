@@ -28,26 +28,6 @@ void GrayScott::iterate()
     v.swap(v2);
 }
 
-void GrayScott::dump() const
-{
-    const int lx = local_size_x + 2;
-    const int ly = local_size_y + 2;
-    const int lz = local_size_z + 2;
-
-    for (int iz = 0; iz < lz; iz++) {
-        std::cout << "z=" << iz << std::endl;
-        for (int iy = ly - 1; iy >= 0; iy--) {
-            for (int ix = 0; ix < lx; ix++) {
-                std::cout << std::fixed << std::setprecision(2)
-                          << u[l2i(ix, iy, iz)] << " ";
-            }
-            std::cout << std::endl;
-        }
-
-        std::cout << std::endl;
-    }
-}
-
 std::vector<double> GrayScott::u_noghost() const { return data_noghost(u); }
 
 std::vector<double> GrayScott::v_noghost() const { return data_noghost(v); }
