@@ -35,13 +35,12 @@ std::vector<double> GrayScott::v_noghost() const { return data_noghost(v); }
 std::vector<double>
 GrayScott::data_noghost(const std::vector<double> &data) const
 {
-    std::vector<double> buf(local_size_x * local_size_y * local_size_z);
+    std::vector<double> buf(size_x * size_y * size_z);
 
-    for (int x = 1; x < local_size_x + 1; x++) {
-        for (int y = 1; y < local_size_y + 1; y++) {
-            for (int z = 1; z < local_size_z + 1; z++) {
-                buf[(x - 1) + (y - 1) * local_size_x +
-                    (z - 1) * local_size_x * local_size_y] =
+    for (int x = 1; x < size_x + 1; x++) {
+        for (int y = 1; y < size_y + 1; y++) {
+            for (int z = 1; z < size_z + 1; z++) {
+                buf[(x - 1) + (y - 1) * size_x + (z - 1) * size_x * size_y] =
                     data[l2i(x, y, z)];
             }
         }
@@ -52,7 +51,7 @@ GrayScott::data_noghost(const std::vector<double> &data) const
 
 void GrayScott::init_field()
 {
-    const int V = (local_size_x + 2) * (local_size_y + 2) * (local_size_z + 2);
+    const int V = (size_x + 2) * (size_y + 2) * (size_z + 2);
     u.resize(V, 1.0);
     v.resize(V, 0.0);
     u2.resize(V, 0.0);
@@ -99,9 +98,9 @@ double GrayScott::laplacian(int x, int y, int z,
 void GrayScott::calc(const std::vector<double> &u, const std::vector<double> &v,
                      std::vector<double> &u2, std::vector<double> &v2)
 {
-    for (int x = 1; x < local_size_x + 1; x++) {
-        for (int y = 1; y < local_size_y + 1; y++) {
-            for (int z = 1; z < local_size_z + 1; z++) {
+    for (int x = 1; x < size_x + 1; x++) {
+        for (int y = 1; y < size_y + 1; y++) {
+            for (int z = 1; z < size_z + 1; z++) {
                 const int i = l2i(x, y, z);
                 double du = 0.0;
                 double dv = 0.0;
@@ -127,43 +126,41 @@ void GrayScott::init_mpi()
     MPI_Comm_size(comm, &procs);
 
     MPI_Dims_create(procs, 3, dims);
-    GX = dims[0];
-    GY = dims[1];
-    GZ = dims[2];
-    local_size_x = settings.L / GX;
-    local_size_y = settings.L / GY;
-    local_size_z = settings.L / GZ;
+    npx = dims[0];
+    npy = dims[1];
+    npz = dims[2];
+    size_x = settings.L / npx;
+    size_y = settings.L / npy;
+    size_z = settings.L / npz;
 
     MPI_Cart_create(comm, 3, dims, periods, 0, &cart_comm);
     MPI_Cart_coords(cart_comm, rank, 3, coords);
-    local_grid_x = coords[0];
-    local_grid_y = coords[1];
-    local_grid_z = coords[2];
+    px = coords[0];
+    py = coords[1];
+    pz = coords[2];
 
     MPI_Cart_shift(cart_comm, 0, 1, &west, &east);
     MPI_Cart_shift(cart_comm, 1, 1, &down, &up);
     MPI_Cart_shift(cart_comm, 2, 1, &south, &north);
 
-    // XY faces: (local_size_x + 2) * (local_Size_y + 2)
-    MPI_Type_vector((local_size_x + 2) * (local_size_y + 2), 1,
-                    local_size_z + 2, MPI_DOUBLE, &xy_face_type);
+    // XY faces: (size_x + 2) * (size_y + 2)
+    MPI_Type_vector((size_x + 2) * (size_y + 2), 1, size_z + 2, MPI_DOUBLE,
+                    &xy_face_type);
     MPI_Type_commit(&xy_face_type);
 
-    // XZ faces: loca_size_x * local_size_z
-    MPI_Type_vector(local_size_x, local_size_z,
-                    (local_size_y + 2) * (local_size_z + 2), MPI_DOUBLE,
+    // XZ faces: loca_size_x * size_z
+    MPI_Type_vector(size_x, size_z, (size_y + 2) * (size_z + 2), MPI_DOUBLE,
                     &xz_face_type);
     MPI_Type_commit(&xz_face_type);
 
-    // YZ faces: (loca_size_y + 2) * local_size_z
-    MPI_Type_vector(local_size_y + 2, local_size_z, local_size_z + 2,
-                    MPI_DOUBLE, &yz_face_type);
+    // YZ faces: (loca_size_y + 2) * size_z
+    MPI_Type_vector(size_y + 2, size_z, size_z + 2, MPI_DOUBLE, &yz_face_type);
     MPI_Type_commit(&yz_face_type);
 }
 
 void GrayScott::sendrecv_xy(std::vector<double> &local_data)
 {
-    const int lz = local_size_z;
+    const int lz = size_z;
     MPI_Status st;
 
     // Send XY face z=lz to north and receive z=0 from south
@@ -178,7 +175,7 @@ void GrayScott::sendrecv_xy(std::vector<double> &local_data)
 
 void GrayScott::sendrecv_xz(std::vector<double> &local_data)
 {
-    const int ly = local_size_y;
+    const int ly = size_y;
     MPI_Status st;
 
     // Send XZ face y=ly to up and receive y=0 from down
@@ -193,7 +190,7 @@ void GrayScott::sendrecv_xz(std::vector<double> &local_data)
 
 void GrayScott::sendrecv_yz(std::vector<double> &local_data)
 {
-    const int lx = local_size_x;
+    const int lx = size_x;
     MPI_Status st;
 
     // Send YZ face x=lx to east and receive x=0 from west

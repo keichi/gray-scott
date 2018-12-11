@@ -11,9 +11,12 @@
 class GrayScott
 {
 public:
-    unsigned long GX, GY, GZ;
-    unsigned long local_grid_x, local_grid_y, local_grid_z;
-    unsigned long local_size_x, local_size_y, local_size_z;
+    // Dimension of process grid
+    unsigned long npx, npy, npz;
+    // Coordinate of this rank in processor grid
+    unsigned long px, py, pz;
+    // Dimension of local array
+    unsigned long size_x, size_y, size_z;
 
     GrayScott(const Settings &settings, MPI_Comm comm);
     ~GrayScott();
@@ -73,13 +76,13 @@ protected:
     // Check if point is included in my subdomain
     inline bool is_inside(int x, int y, int z) const
     {
-        int sx = local_size_x * local_grid_x;
-        int sy = local_size_y * local_grid_y;
-        int sz = local_size_z * local_grid_z;
+        int sx = size_x * px;
+        int sy = size_y * py;
+        int sz = size_z * pz;
 
-        int ex = sx + local_size_x;
-        int ey = sy + local_size_y;
-        int ez = sz + local_size_z;
+        int ex = sx + size_x;
+        int ey = sy + size_y;
+        int ez = sz + size_z;
 
         if (x < sx) return false;
         if (x >= ex) return false;
@@ -93,9 +96,9 @@ protected:
     // Convert global coordinate to local index
     inline int g2i(int gx, int gy, int gz) const
     {
-        int sx = local_size_x * local_grid_x;
-        int sy = local_size_y * local_grid_y;
-        int sz = local_size_z * local_grid_z;
+        int sx = size_x * px;
+        int sy = size_y * py;
+        int sz = size_z * pz;
 
         int x = gx - sx;
         int y = gy - sy;
@@ -106,8 +109,7 @@ protected:
     // Convert local coordinate to local index
     inline int l2i(int x, int y, int z) const
     {
-        return z + y * (local_size_z + 2) +
-               x * (local_size_y + 2) * (local_size_z + 2);
+        return z + y * (size_z + 2) + x * (size_y + 2) * (size_z + 2);
     }
 };
 

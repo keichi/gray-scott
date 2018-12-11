@@ -26,10 +26,10 @@ void print_settings(const Settings &s)
 
 void print_simulator_settings(const GrayScott &s)
 {
-    std::cout << "decomposition:    " << s.GX << "x" << s.GY << "x" << s.GZ
+    std::cout << "decomposition:    " << s.npx << "x" << s.npy << "x" << s.npz
               << std::endl;
-    std::cout << "grid per process: " << s.local_size_x << "x" << s.local_size_y
-              << "x" << s.local_size_z << std::endl;
+    std::cout << "grid per process: " << s.size_x << "x" << s.size_y << "x"
+              << s.size_z << std::endl;
 }
 
 int main(int argc, char **argv)
@@ -57,22 +57,14 @@ int main(int argc, char **argv)
     adios2::IO io = adios.DeclareIO("SimulationOutput");
 
     adios2::Variable<double> varU = io.DefineVariable<double>(
-        "U",
-        {sim.GZ * sim.local_size_z, sim.GY * sim.local_size_y,
-         sim.GX * sim.local_size_x},
-        {sim.local_grid_z * sim.local_size_z,
-         sim.local_grid_y * sim.local_size_y,
-         sim.local_grid_x * sim.local_size_x},
-        {sim.local_size_z, sim.local_size_y, sim.local_size_x});
+        "U", {sim.npz * sim.size_z, sim.npy * sim.size_y, sim.npx * sim.size_x},
+        {sim.pz * sim.size_z, sim.py * sim.size_y, sim.px * sim.size_x},
+        {sim.size_z, sim.size_y, sim.size_x});
 
     adios2::Variable<double> varV = io.DefineVariable<double>(
-        "V",
-        {sim.GZ * sim.local_size_z, sim.GY * sim.local_size_y,
-         sim.GX * sim.local_size_x},
-        {sim.local_grid_z * sim.local_size_z,
-         sim.local_grid_y * sim.local_size_y,
-         sim.local_grid_x * sim.local_size_x},
-        {sim.local_size_z, sim.local_size_y, sim.local_size_x});
+        "V", {sim.npz * sim.size_z, sim.npy * sim.size_y, sim.npx * sim.size_x},
+        {sim.pz * sim.size_z, sim.py * sim.size_y, sim.px * sim.size_x},
+        {sim.size_z, sim.size_y, sim.size_x});
 
     adios2::Engine writer = io.Open(settings.output, adios2::Mode::Write);
 
