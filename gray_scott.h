@@ -66,8 +66,8 @@ protected:
     // Convert local coordinate to local index
     inline int l2i(int x, int y, int z) const
     {
-        return x + y * (local_size_x + 2) +
-               z * (local_size_x + 2) * (local_size_y + 2);
+        return z + y * (local_size_z + 2) +
+               x * (local_size_y + 2) * (local_size_z + 2);
     }
 };
 
