@@ -8,11 +8,36 @@
 
 #include "gray_scott.h"
 
+void print_settings(const Settings &s)
+{
+    std::cout << "====================" << std::endl;
+    std::cout << "L:            " << s.L << std::endl;
+    std::cout << "steps:        " << s.steps << std::endl;
+    std::cout << "iterations:   " << s.iterations << std::endl;
+    std::cout << "F:            " << s.F << std::endl;
+    std::cout << "k:            " << s.k << std::endl;
+    std::cout << "dt:           " << s.dt << std::endl;
+    std::cout << "Du:           " << s.Du << std::endl;
+    std::cout << "Dv:           " << s.Dv << std::endl;
+    std::cout << "noise:        " << s.noise << std::endl;
+    std::cout << "output:       " << s.output << std::endl;
+    std::cout << "adios_config: " << s.adios_config << std::endl;
+    std::cout << "====================" << std::endl;
+}
+
 int main(int argc, char **argv)
 {
+    int rank;
     MPI_Init(&argc, &argv);
 
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
     Settings settings = Settings::from_json("settings.json");
+
+    if (rank == 0) {
+        print_settings(settings);
+    }
+
     GrayScott sim(settings);
 
     sim.init();
@@ -46,7 +71,9 @@ int main(int argc, char **argv)
         sim.iterate();
 
         if (i % settings.iterations == 0) {
-            std::cout << "Writing step: " << i << std::endl;
+            if (rank == 0) {
+                std::cout << "Writing step: " << i << std::endl;
+            }
             std::vector<double> u = sim.u_noghost();
             std::vector<double> v = sim.v_noghost();
 
