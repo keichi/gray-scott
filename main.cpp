@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 
     sim.init();
 
-    adios2::ADIOS adios("adios2_config.xml", MPI_COMM_WORLD, adios2::DebugON);
+    adios2::ADIOS adios(settings.adios_config, MPI_COMM_WORLD, adios2::DebugON);
 
     adios2::IO io = adios.DeclareIO("SimulationOutput");
 
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
         {sim.local_size_z, sim.local_size_y, sim.local_size_x});
 
 
-    adios2::Engine writer = io.Open("foo.bp", adios2::Mode::Write);
+    adios2::Engine writer = io.Open(settings.output, adios2::Mode::Write);
 
     for (int i = 0; i < settings.steps; i++) {
         sim.iterate();

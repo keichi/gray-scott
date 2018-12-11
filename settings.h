@@ -15,6 +15,8 @@ public:
     double Du;
     double Dv;
     double noise;
+    std::string output;
+    std::string adios_config;
 
     Settings();
     static Settings from_json(const std::string &fname);
