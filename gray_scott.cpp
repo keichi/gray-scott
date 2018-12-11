@@ -37,12 +37,12 @@ GrayScott::data_noghost(const std::vector<double> &data) const
 {
     std::vector<double> buf(local_size_x * local_size_y * local_size_z);
 
-    for (int ix = 1; ix < local_size_x + 1; ix++) {
-        for (int iy = 1; iy < local_size_y + 1; iy++) {
-            for (int iz = 1; iz < local_size_z + 1; iz++) {
-                buf[(ix - 1) + (iy - 1) * local_size_x +
-                    (iz - 1) * local_size_x * local_size_y] =
-                    data[l2i(ix, iy, iz)];
+    for (int x = 1; x < local_size_x + 1; x++) {
+        for (int y = 1; y < local_size_y + 1; y++) {
+            for (int z = 1; z < local_size_z + 1; z++) {
+                buf[(x - 1) + (y - 1) * local_size_x +
+                    (z - 1) * local_size_x * local_size_y] =
+                    data[l2i(x, y, z)];
             }
         }
     }
@@ -59,11 +59,11 @@ void GrayScott::init_field()
     v2.resize(V, 0.0);
 
     int d = 6;
-    for (int ix = settings.L / 2 - d; ix < settings.L / 2 + d; ix++) {
-        for (int iy = settings.L / 2 - d; iy < settings.L / 2 + d; iy++) {
-            for (int iz = settings.L / 2 - d; iz < settings.L / 2 + d; iz++) {
-                if (!is_inside(ix, iy, iz)) continue;
-                int i = g2i(ix, iy, iz);
+    for (int x = settings.L / 2 - d; x < settings.L / 2 + d; x++) {
+        for (int y = settings.L / 2 - d; y < settings.L / 2 + d; y++) {
+            for (int z = settings.L / 2 - d; z < settings.L / 2 + d; z++) {
+                if (!is_inside(x, y, z)) continue;
+                int i = g2i(x, y, z);
                 u[i] = 0.25;
                 v[i] = 0.33;
             }
@@ -81,17 +81,17 @@ double GrayScott::calcV(double tu, double tv) const
     return tu * tv * tv - (settings.F + settings.k) * tv;
 }
 
-double GrayScott::laplacian(int ix, int iy, int iz,
+double GrayScott::laplacian(int x, int y, int z,
                             const std::vector<double> &s) const
 {
     double ts = 0.0;
-    ts += s[l2i(ix - 1, iy, iz)];
-    ts += s[l2i(ix + 1, iy, iz)];
-    ts += s[l2i(ix, iy - 1, iz)];
-    ts += s[l2i(ix, iy + 1, iz)];
-    ts += s[l2i(ix, iy, iz - 1)];
-    ts += s[l2i(ix, iy, iz + 1)];
-    ts += -6.0 * s[l2i(ix, iy, iz)];
+    ts += s[l2i(x - 1, y, z)];
+    ts += s[l2i(x + 1, y, z)];
+    ts += s[l2i(x, y - 1, z)];
+    ts += s[l2i(x, y + 1, z)];
+    ts += s[l2i(x, y, z - 1)];
+    ts += s[l2i(x, y, z + 1)];
+    ts += -6.0 * s[l2i(x, y, z)];
 
     return ts / 6.0;
 }
@@ -99,14 +99,14 @@ double GrayScott::laplacian(int ix, int iy, int iz,
 void GrayScott::calc(const std::vector<double> &u, const std::vector<double> &v,
                      std::vector<double> &u2, std::vector<double> &v2)
 {
-    for (int ix = 1; ix < local_size_x + 1; ix++) {
-        for (int iy = 1; iy < local_size_y + 1; iy++) {
-            for (int iz = 1; iz < local_size_z + 1; iz++) {
-                const int i = l2i(ix, iy, iz);
+    for (int x = 1; x < local_size_x + 1; x++) {
+        for (int y = 1; y < local_size_y + 1; y++) {
+            for (int z = 1; z < local_size_z + 1; z++) {
+                const int i = l2i(x, y, z);
                 double du = 0.0;
                 double dv = 0.0;
-                du = settings.Du * laplacian(ix, iy, iz, u);
-                dv = settings.Dv * laplacian(ix, iy, iz, v);
+                du = settings.Du * laplacian(x, y, z, u);
+                dv = settings.Dv * laplacian(x, y, z, v);
                 du += calcU(u[i], v[i]);
                 dv += calcV(u[i], v[i]);
                 du += settings.noise * uniform_dist(mt_gen);
