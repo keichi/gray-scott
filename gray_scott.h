@@ -12,11 +12,11 @@ class GrayScott
 {
 public:
     // Dimension of process grid
-    unsigned long npx, npy, npz;
+    size_t npx, npy, npz;
     // Coordinate of this rank in processor grid
-    unsigned long px, py, pz;
+    size_t px, py, pz;
     // Dimension of local array
-    unsigned long size_x, size_y, size_z;
+    size_t size_x, size_y, size_z;
 
     GrayScott(const Settings &settings, MPI_Comm comm);
     ~GrayScott();
