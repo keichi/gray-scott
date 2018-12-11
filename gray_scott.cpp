@@ -54,39 +54,6 @@ GrayScott::data_noghost(const std::vector<double> &data) const
     return buf;
 }
 
-bool GrayScott::is_inside(int x, int y, int z) const
-{
-    int sx = local_size_x * local_grid_x;
-    int sy = local_size_y * local_grid_y;
-    int sz = local_size_z * local_grid_z;
-
-    int ex = sx + local_size_x;
-    int ey = sy + local_size_y;
-    int ez = sz + local_size_z;
-
-    if (x < sx) return false;
-    if (x >= ex) return false;
-    if (y < sy) return false;
-    if (y >= ey) return false;
-    if (z < sz) return false;
-    if (z >= ez) return false;
-
-    return true;
-}
-
-int GrayScott::g2i(int gx, int gy, int gz) const
-{
-    int sx = local_size_x * local_grid_x;
-    int sy = local_size_y * local_grid_y;
-    int sz = local_size_z * local_grid_z;
-
-    int x = gx - sx;
-    int y = gy - sy;
-    int z = gz - sz;
-
-    return l2i(x + 1, y + 1, z + 1);
-}
-
 void GrayScott::init_field()
 {
     const int V = (local_size_x + 2) * (local_size_y + 2) * (local_size_z + 2);
@@ -185,66 +152,63 @@ void GrayScott::init_mpi()
     MPI_Cart_shift(cart_comm, 1, 1, &down, &up);
     MPI_Cart_shift(cart_comm, 2, 1, &south, &north);
 
-    // XY face: (local_size_x + 2) * (local_Size_y + 2)
+    // XY faces: (local_size_x + 2) * (local_Size_y + 2)
     MPI_Type_vector((local_size_x + 2) * (local_size_y + 2), 1,
                     local_size_z + 2, MPI_DOUBLE, &xy_face_type);
     MPI_Type_commit(&xy_face_type);
 
-    // XZ face: loca_size_x * local_size_z
+    // XZ faces: loca_size_x * local_size_z
     MPI_Type_vector(local_size_x, local_size_z,
                     (local_size_y + 2) * (local_size_z + 2), MPI_DOUBLE,
                     &xz_face_type);
     MPI_Type_commit(&xz_face_type);
 
-    // YZ face: (loca_size_y + 2) * local_size_z
+    // YZ faces: (loca_size_y + 2) * local_size_z
     MPI_Type_vector(local_size_y + 2, local_size_z, local_size_z + 2,
                     MPI_DOUBLE, &yz_face_type);
     MPI_Type_commit(&yz_face_type);
 }
 
-// Exchange XY face with north/south
 void GrayScott::sendrecv_xy(std::vector<double> &local_data)
 {
     const int lz = local_size_z;
     MPI_Status st;
 
-    // Send XY surface z=lz to north and receive surface z=0 from south
+    // Send XY face z=lz to north and receive z=0 from south
     MPI_Sendrecv(&local_data[l2i(0, 0, lz)], 1, xy_face_type, north, 1,
                  &local_data[l2i(0, 0, 0)], 1, xy_face_type, south, 1,
                  cart_comm, &st);
-    // Send XY surface z=1 to south and receive surface z=lz+1 from north
+    // Send XY face z=1 to south and receive z=lz+1 from north
     MPI_Sendrecv(&local_data[l2i(0, 0, 1)], 1, xy_face_type, south, 1,
                  &local_data[l2i(0, 0, lz + 1)], 1, xy_face_type, north, 1,
                  cart_comm, &st);
 }
 
-// Exchange XZ face with up/down
 void GrayScott::sendrecv_xz(std::vector<double> &local_data)
 {
     const int ly = local_size_y;
     MPI_Status st;
 
-    // Send XZ surface y=ly to up and receive surface y=0 from down
+    // Send XZ face y=ly to up and receive y=0 from down
     MPI_Sendrecv(&local_data[l2i(1, ly, 1)], 1, xz_face_type, up, 2,
                  &local_data[l2i(1, 0, 1)], 1, xz_face_type, down, 2, cart_comm,
                  &st);
-    // Send XZ surface y=1 to down and receive surface y=ly+1 from up
+    // Send XZ face y=1 to down and receive y=ly+1 from up
     MPI_Sendrecv(&local_data[l2i(1, 1, 1)], 1, xz_face_type, down, 2,
                  &local_data[l2i(1, ly + 1, 1)], 1, xz_face_type, up, 2,
                  cart_comm, &st);
 }
 
-// Exchange YZ face with west/east
 void GrayScott::sendrecv_yz(std::vector<double> &local_data)
 {
     const int lx = local_size_x;
     MPI_Status st;
 
-    // Send YZ surface x=lx to east and receive surface x=0 from west
+    // Send YZ face x=lx to east and receive x=0 from west
     MPI_Sendrecv(&local_data[l2i(lx, 0, 1)], 1, yz_face_type, east, 3,
                  &local_data[l2i(0, 0, 1)], 1, yz_face_type, west, 3, cart_comm,
                  &st);
-    // Send YZ surface x=1 to west and receive surface x=lx+1 from east
+    // Send YZ face x=1 to west and receive x=lx+1 from east
     MPI_Sendrecv(&local_data[l2i(0, 0, 1)], 1, yz_face_type, west, 3,
                  &local_data[l2i(lx + 1, 0, 1)], 1, yz_face_type, east, 3,
                  cart_comm, &st);
