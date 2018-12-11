@@ -15,7 +15,7 @@ public:
     unsigned long local_grid_x, local_grid_y, local_grid_z;
     unsigned long local_size_x, local_size_y, local_size_z;
 
-    GrayScott(const Settings &settings);
+    GrayScott(const Settings &settings, MPI_Comm comm);
     ~GrayScott();
 
     void init();
@@ -33,6 +33,7 @@ protected:
     int procs;
     int west, east, up, down, north, south;
     MPI_Comm comm;
+    MPI_Comm cart_comm;
 
     MPI_Datatype xy_face_type;
     MPI_Datatype xz_face_type;

@@ -5,8 +5,8 @@
 
 #include "gray_scott.h"
 
-GrayScott::GrayScott(const Settings &settings)
-    : settings(settings), rand_dev(), mt_gen(rand_dev()),
+GrayScott::GrayScott(const Settings &settings, MPI_Comm comm)
+    : settings(settings), comm(comm), rand_dev(), mt_gen(rand_dev()),
       uniform_dist(-1.0, 1.0)
 {
 }
@@ -184,8 +184,8 @@ void GrayScott::init_mpi()
     int periods[3] = {1, 1, 1};
     int coords[3] = {};
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &procs);
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &procs);
 
     MPI_Dims_create(procs, 3, dims);
     GX = dims[0];
@@ -195,15 +195,15 @@ void GrayScott::init_mpi()
     local_size_y = settings.L / GY;
     local_size_z = settings.L / GZ;
 
-    MPI_Cart_create(MPI_COMM_WORLD, 3, dims, periods, 0, &comm);
-    MPI_Cart_coords(comm, rank, 3, coords);
+    MPI_Cart_create(comm, 3, dims, periods, 0, &cart_comm);
+    MPI_Cart_coords(cart_comm, rank, 3, coords);
     local_grid_x = coords[0];
     local_grid_y = coords[1];
     local_grid_z = coords[2];
 
-    MPI_Cart_shift(comm, 0, 1, &west, &east);
-    MPI_Cart_shift(comm, 1, 1, &down, &up);
-    MPI_Cart_shift(comm, 2, 1, &south, &north);
+    MPI_Cart_shift(cart_comm, 0, 1, &west, &east);
+    MPI_Cart_shift(cart_comm, 1, 1, &down, &up);
+    MPI_Cart_shift(cart_comm, 2, 1, &south, &north);
 
     // XY face: (local_size_x + 2) * (local_Size_y + 2)
     MPI_Type_vector((local_size_x + 2) * (local_size_y + 2), 1,
@@ -230,12 +230,12 @@ void GrayScott::sendrecv_xy(std::vector<double> &local_data)
 
     // Send XY surface z=lz to north and receive surface z=0 from south
     MPI_Sendrecv(&local_data[l2i(0, 0, lz)], 1, xy_face_type, north, 1,
-                 &local_data[l2i(0, 0, 0)], 1, xy_face_type, south, 1, comm,
-                 &st);
+                 &local_data[l2i(0, 0, 0)], 1, xy_face_type, south, 1,
+                 cart_comm, &st);
     // Send XY surface z=1 to south and receive surface z=lz+1 from north
     MPI_Sendrecv(&local_data[l2i(0, 0, 1)], 1, xy_face_type, south, 1,
                  &local_data[l2i(0, 0, lz + 1)], 1, xy_face_type, north, 1,
-                 comm, &st);
+                 cart_comm, &st);
 }
 
 // Exchange XZ face with up/down
@@ -246,12 +246,12 @@ void GrayScott::sendrecv_xz(std::vector<double> &local_data)
 
     // Send XZ surface y=ly to up and receive surface y=0 from down
     MPI_Sendrecv(&local_data[l2i(1, ly, 1)], 1, xz_face_type, up, 2,
-                 &local_data[l2i(1, 0, 1)], 1, xz_face_type, down, 2, comm,
+                 &local_data[l2i(1, 0, 1)], 1, xz_face_type, down, 2, cart_comm,
                  &st);
     // Send XZ surface y=1 to down and receive surface y=ly+1 from up
     MPI_Sendrecv(&local_data[l2i(1, 1, 1)], 1, xz_face_type, down, 2,
-                 &local_data[l2i(1, ly + 1, 1)], 1, xz_face_type, up, 2, comm,
-                 &st);
+                 &local_data[l2i(1, ly + 1, 1)], 1, xz_face_type, up, 2,
+                 cart_comm, &st);
 }
 
 // Exchange YZ face with west/east
@@ -262,12 +262,12 @@ void GrayScott::sendrecv_yz(std::vector<double> &local_data)
 
     // Send YZ surface x=lx to east and receive surface x=0 from west
     MPI_Sendrecv(&local_data[l2i(lx, 0, 1)], 1, yz_face_type, east, 3,
-                 &local_data[l2i(0, 0, 1)], 1, yz_face_type, west, 3, comm,
+                 &local_data[l2i(0, 0, 1)], 1, yz_face_type, west, 3, cart_comm,
                  &st);
     // Send YZ surface x=1 to west and receive surface x=lx+1 from east
     MPI_Sendrecv(&local_data[l2i(0, 0, 1)], 1, yz_face_type, west, 3,
-                 &local_data[l2i(lx + 1, 0, 1)], 1, yz_face_type, east, 3, comm,
-                 &st);
+                 &local_data[l2i(lx + 1, 0, 1)], 1, yz_face_type, east, 3,
+                 cart_comm, &st);
 }
 
 void GrayScott::sendrecv(std::vector<double> &u, std::vector<double> &v)

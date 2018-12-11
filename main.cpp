@@ -38,7 +38,7 @@ int main(int argc, char **argv)
         print_settings(settings);
     }
 
-    GrayScott sim(settings);
+    GrayScott sim(settings, MPI_COMM_WORLD);
 
     sim.init();
 
