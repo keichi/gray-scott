@@ -11,7 +11,7 @@ void print_settings(const Settings &s)
     std::cout << "grid:             " << s.L << "x" << s.L << "x" << s.L
               << std::endl;
     std::cout << "steps:            " << s.steps << std::endl;
-    std::cout << "iterations:       " << s.iterations << std::endl;
+    std::cout << "plotgap:          " << s.plotgap << std::endl;
     std::cout << "F:                " << s.F << std::endl;
     std::cout << "k:                " << s.k << std::endl;
     std::cout << "dt:               " << s.dt << std::endl;
@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < settings.steps; i++) {
         sim.iterate();
 
-        if (i % settings.iterations == 0) {
+        if (i % settings.plotgap == 0) {
             if (rank == 0) {
                 std::cout << "Writing step: " << i << std::endl;
             }

@@ -8,7 +8,7 @@ class Settings
 public:
     int L;
     int steps;
-    int iterations;
+    int plotgap;
     double F;
     double k;
     double dt;

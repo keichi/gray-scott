@@ -7,7 +7,7 @@ void to_json(nlohmann::json &j, const Settings &s)
 {
     j = nlohmann::json{{"L", s.L},
                        {"steps", s.steps},
-                       {"iterations", s.iterations},
+                       {"plotgap", s.plotgap},
                        {"F", s.F},
                        {"k", s.k},
                        {"dt", s.dt},
@@ -22,7 +22,7 @@ void from_json(const nlohmann::json &j, Settings &s)
 {
     j.at("L").get_to(s.L);
     j.at("steps").get_to(s.steps);
-    j.at("iterations").get_to(s.iterations);
+    j.at("plotgap").get_to(s.plotgap);
     j.at("F").get_to(s.F);
     j.at("k").get_to(s.k);
     j.at("dt").get_to(s.dt);
@@ -37,7 +37,7 @@ Settings::Settings()
 {
     L = 128;
     steps = 20000;
-    iterations = 200;
+    plotgap = 200;
     F = 0.04;
     k = 0.06075;
     dt = 0.2;

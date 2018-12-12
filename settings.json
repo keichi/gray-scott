@@ -5,7 +5,7 @@
     "F": 0.02,
     "k": 0.048,
     "dt": 1.0,
-    "iterations": 20,
+    "plotgap": 20,
     "steps": 3000,
     "noise": 0.01,
     "output": "gray_scott.bp",
