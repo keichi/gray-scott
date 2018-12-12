@@ -198,7 +198,7 @@ void GrayScott::sendrecv_yz(std::vector<double> &local_data)
                  &local_data[l2i(0, 0, 1)], 1, yz_face_type, west, 3, cart_comm,
                  &st);
     // Send YZ face x=1 to west and receive x=lx+1 from east
-    MPI_Sendrecv(&local_data[l2i(0, 0, 1)], 1, yz_face_type, west, 3,
+    MPI_Sendrecv(&local_data[l2i(1, 0, 1)], 1, yz_face_type, west, 3,
                  &local_data[l2i(lx + 1, 0, 1)], 1, yz_face_type, east, 3,
                  cart_comm, &st);
 }
