@@ -37,7 +37,15 @@ int main(int argc, char **argv)
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    Settings settings = Settings::from_json("settings.json");
+    if (argc < 2) {
+        if (rank == 0) {
+            std::cerr << "Too few arguments" << std::endl;
+            std::cerr << "Usage: grayscott settings.json" << std::endl;
+        }
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+    Settings settings = Settings::from_json(argv[1]);
 
     GrayScott sim(settings, MPI_COMM_WORLD);
 
