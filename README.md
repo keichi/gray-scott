@@ -21,18 +21,18 @@ $ make
 
 Edit settings.json to change the parameters for the simulation.
 
-| Key           | Description                       |
-| ------------- | --------------------------------- |
-| L             | Size of 3D array (L*L*L cube)     |
-| Du            | Diffusion coefficient of U        |
-| Dv            | Diffusion coefficient of V        |
-| F             | Feed rate of U                    |
-| k             | Kill rate of V                    |
-| dt            | Timestep                          |
-| steps         | Total number of steps to simulate |
-| plotgap       | Number of steps between output    |
-| noise         | Amount of noise to inject         |
-| output        | Output file/stream name           |
-| adios_config  | ADIOS2 XML file name              |
+| Key           | Description                           |
+| ------------- | ------------------------------------- |
+| L             | Size of global array (L x L x L cube) |
+| Du            | Diffusion coefficient of U            |
+| Dv            | Diffusion coefficient of V            |
+| F             | Feed rate of U                        |
+| k             | Kill rate of V                        |
+| dt            | Timestep                              |
+| steps         | Total number of steps to simulate     |
+| plotgap       | Number of steps between output        |
+| noise         | Amount of noise to inject             |
+| output        | Output file/stream name               |
+| adios_config  | ADIOS2 XML file name                  |
 
 Decomposition is automatically determined by MPI_Dims_create.
