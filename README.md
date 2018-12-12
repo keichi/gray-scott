@@ -17,6 +17,34 @@ $ cmake .
 $ make
 ```
 
+## How to run
+
+```
+$ mpiexec -np 8 ./grayscott settings.json
+========================================
+grid:             64x64x64
+steps:            3000
+plotgap:          20
+F:                0.02
+k:                0.048
+dt:               1
+Du:               0.2
+Dv:               0.1
+noise:            0.01
+output:           gray_scott.bp
+adios_config:     adios2_config.xml
+decomposition:    2x2x2
+grid per process: 32x32x32
+========================================
+Writing step: 0
+Writing step: 20
+Writing step: 40
+Writing step: 60
+Writing step: 80
+Writing step: 100
+...
+```
+
 ## How to change the parameters
 
 Edit settings.json to change the parameters for the simulation.
