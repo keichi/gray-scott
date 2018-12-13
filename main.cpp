@@ -62,6 +62,13 @@ int main(int argc, char **argv)
 
     adios2::IO io = adios.DeclareIO("SimulationOutput");
 
+    io.DefineAttribute<double>("F", settings.F);
+    io.DefineAttribute<double>("k", settings.k);
+    io.DefineAttribute<double>("dt", settings.dt);
+    io.DefineAttribute<double>("Du", settings.Du);
+    io.DefineAttribute<double>("Dv", settings.Dv);
+    io.DefineAttribute<double>("noise", settings.noise);
+
     adios2::Variable<double> varU = io.DefineVariable<double>(
         "U", {sim.npz * sim.size_z, sim.npy * sim.size_y, sim.npx * sim.size_x},
         {sim.pz * sim.size_z, sim.py * sim.size_y, sim.px * sim.size_x},
