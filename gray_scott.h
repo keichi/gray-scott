@@ -62,13 +62,13 @@ protected:
                      const std::vector<double> &s) const;
 
     // Exchange faces with neighbors
-    void sendrecv(std::vector<double> &u, std::vector<double> &v);
+    void sendrecv(std::vector<double> &u, std::vector<double> &v) const;
     // Exchange XY faces with north/south
-    void sendrecv_xy(std::vector<double> &local_data);
+    void sendrecv_xy(std::vector<double> &local_data) const;
     // Exchange XZ faces with up/down
-    void sendrecv_xz(std::vector<double> &local_data);
+    void sendrecv_xz(std::vector<double> &local_data) const;
     // Exchange YZ faces with west/east
-    void sendrecv_yz(std::vector<double> &local_data);
+    void sendrecv_yz(std::vector<double> &local_data) const;
 
     // Return a copy of data with ghosts removed
     std::vector<double> data_noghost(const std::vector<double> &data) const;

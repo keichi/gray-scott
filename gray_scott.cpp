@@ -57,7 +57,7 @@ void GrayScott::init_field()
     u2.resize(V, 0.0);
     v2.resize(V, 0.0);
 
-    int d = 6;
+    const int d = 6;
     for (int x = settings.L / 2 - d; x < settings.L / 2 + d; x++) {
         for (int y = settings.L / 2 - d; y < settings.L / 2 + d; y++) {
             for (int z = settings.L / 2 - d; z < settings.L / 2 + d; z++) {
@@ -119,7 +119,7 @@ void GrayScott::calc(const std::vector<double> &u, const std::vector<double> &v,
 void GrayScott::init_mpi()
 {
     int dims[3] = {};
-    int periods[3] = {1, 1, 1};
+    const int periods[3] = {1, 1, 1};
     int coords[3] = {};
 
     MPI_Comm_rank(comm, &rank);
@@ -158,7 +158,7 @@ void GrayScott::init_mpi()
     MPI_Type_commit(&yz_face_type);
 }
 
-void GrayScott::sendrecv_xy(std::vector<double> &local_data)
+void GrayScott::sendrecv_xy(std::vector<double> &local_data) const
 {
     const int lz = size_z;
     MPI_Status st;
@@ -173,7 +173,7 @@ void GrayScott::sendrecv_xy(std::vector<double> &local_data)
                  cart_comm, &st);
 }
 
-void GrayScott::sendrecv_xz(std::vector<double> &local_data)
+void GrayScott::sendrecv_xz(std::vector<double> &local_data) const
 {
     const int ly = size_y;
     MPI_Status st;
@@ -188,7 +188,7 @@ void GrayScott::sendrecv_xz(std::vector<double> &local_data)
                  cart_comm, &st);
 }
 
-void GrayScott::sendrecv_yz(std::vector<double> &local_data)
+void GrayScott::sendrecv_yz(std::vector<double> &local_data) const
 {
     const int lx = size_x;
     MPI_Status st;
@@ -203,7 +203,7 @@ void GrayScott::sendrecv_yz(std::vector<double> &local_data)
                  cart_comm, &st);
 }
 
-void GrayScott::sendrecv(std::vector<double> &u, std::vector<double> &v)
+void GrayScott::sendrecv(std::vector<double> &u, std::vector<double> &v) const
 {
     sendrecv_xy(u);
     sendrecv_xz(u);
