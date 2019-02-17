@@ -1,5 +1,7 @@
 # gray-scott
 
+**This code has moved to [pnorbert/adiosvm](https://github.com/pnorbert/adiosvm/tree/master/Tutorial/gray-scott) and will be maintained there**
+
 This is a 3D 7-point stencil code to simulate the following Gray-Scott
 reaction diffusion model:
 
